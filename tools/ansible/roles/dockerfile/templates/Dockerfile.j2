@@ -230,7 +230,6 @@ ADD tools/docker-compose/bootstrap_development.sh /usr/bin/bootstrap_development
 ADD tools/docker-compose/entrypoint.sh /entrypoint.sh
 ADD tools/scripts/config-watcher /usr/bin/config-watcher
 {% elif kube_dev|bool %}
-RUN chmod +x /entrypoint.sh
 RUN ln -sf /awx_devel/tools/ansible/roles/dockerfile/files/launch_awx_web.sh /usr/bin/launch_awx_web.sh
 RUN ln -sf /awx_devel/tools/ansible/roles/dockerfile/files/launch_awx_task.sh /usr/bin/launch_awx_task.sh
 RUN ln -sf /awx_devel/tools/ansible/roles/dockerfile/files/launch_awx_rsyslog.sh /usr/bin/launch_awx_rsyslog.sh
@@ -249,6 +248,7 @@ ADD tools/scripts/awx-python /usr/bin/awx-python
 {% endif %}
 
 {% if (build_dev|bool) or (kube_dev|bool) %}
+RUN chmod +x /entrypoint.sh
 RUN echo /awx_devel > /var/lib/awx/venv/awx/lib/python3.11/site-packages/awx.egg-link
 RUN echo /awx_devel > /var/lib/awx/venv/awx/lib/python3.11/site-packages/awx.pth
 RUN ln -sf /awx_devel/tools/docker-compose/awx-manage /usr/local/bin/awx-manage

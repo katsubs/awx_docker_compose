@@ -580,7 +580,7 @@ docker-compose-buildx: Dockerfile.dev
 		$(DOCKER_DEVEL_CACHE_FLAG) \
 		--platform=$(PLATFORMS) \
 		--tag $(DEVEL_IMAGE_NAME) \
-		-f Dockerfile.dev /home/katsub/awx_docker_compose
+		-f Dockerfile.dev .
 	- docker buildx rm docker-compose-buildx
 
 docker-clean:
