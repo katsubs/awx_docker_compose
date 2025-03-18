@@ -29,15 +29,15 @@ services:
     working_dir: "/awx_devel"
     volumes:
       - "../../../:/awx_devel"
-      - "../../awx_docker_compose/_sources/supervisor.conf:/etc/supervisord.conf"
-      - "../../awx_docker_compose/_sources/database.py:/etc/tower/conf.d/database.py"
-      - "../../awx_docker_compose/_sources/websocket_secret.py:/etc/tower/conf.d/websocket_secret.py"
-      - "../../awx_docker_compose/_sources/local_settings.py:/etc/tower/conf.d/local_settings.py"
-      - "../../awx_docker_compose/_sources/nginx.conf:/etc/nginx/nginx.conf"
-      - "../../awx_docker_compose/_sources/nginx.locations.conf:/etc/nginx/conf.d/nginx.locations.conf"
-      - "../../awx_docker_compose/_sources/SECRET_KEY:/etc/tower/SECRET_KEY"
-      - "../../awx_docker_compose/_sources/receptor/receptor-awx-1.conf:/etc/receptor/receptor.conf"
-      - "../../awx_docker_compose/_sources/receptor/receptor-awx-1.conf.lock:/etc/receptor/receptor.conf.lock"
+      - "../../awx_docker_compose/awx_docker_compose/_sources/supervisor.conf:/etc/supervisord.conf"
+      - "../../awx_docker_compose/awx_docker_compose/_sources/database.py:/etc/tower/conf.d/database.py"
+      - "../../awx_docker_compose/awx_docker_compose/_sources/websocket_secret.py:/etc/tower/conf.d/websocket_secret.py"
+      - "../../awx_docker_compose/awx_docker_compose/_sources/local_settings.py:/etc/tower/conf.d/local_settings.py"
+      - "../../awx_docker_compose/awx_docker_compose/_sources/nginx.conf:/etc/nginx/nginx.conf"
+      - "../../awx_docker_compose/awx_docker_compose/_sources/nginx.locations.conf:/etc/nginx/conf.d/nginx.locations.conf"
+      - "../../awx_docker_compose/awx_docker_compose/_sources/SECRET_KEY:/etc/tower/SECRET_KEY"
+      - "../../awx_docker_compose/awx_docker_compose/_sources/receptor/receptor-awx-1.conf:/etc/receptor/receptor.conf"
+      - "../../awx_docker_compose/awx_docker_compose/_sources/receptor/receptor-awx-1.conf.lock:/etc/receptor/receptor.conf.lock"
       # - "../../awx_docker_compose/_sources/certs:/etc/receptor/certs"  # TODO: optionally generate certs
       - "/sys/fs/cgroup:/sys/fs/cgroup"
       - "~/.kube/config:/var/lib/awx/.kube/config"
@@ -89,11 +89,15 @@ services:
 volumes:
   awx_db_15:
     name: tools_awx_db_15
+    external: true
   redis_socket_1:
     name: tools_redis_socket_1
+    external: true
 
 networks:
   awx:
     name: awx
+    external: true
   service-mesh:
     name: service-mesh
+    external: true
