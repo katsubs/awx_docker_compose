@@ -9,7 +9,7 @@ NPM_BIN ?= npm
 KIND_BIN ?= $(shell which kind)
 CHROMIUM_BIN=/tmp/chrome-linux/chrome
 GIT_REPO_NAME ?= $(shell basename `git rev-parse --show-toplevel`)
-GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
+GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD | cut -d'/' -f2)
 MANAGEMENT_COMMAND ?= awx-manage
 VERSION ?= $(shell $(PYTHON) tools/scripts/scm_version.py 2> /dev/null)
 
