@@ -2,7 +2,7 @@ version: '2.1'
 services:
   # Primary AWX Development Container
   awx_1:
-    user: "0"
+    user: "ls root"
     cgroup: "host"
     image: "ghcr.io/ansible/awx_docker_compose_devel:24.6.1"
     container_name: tools_awx_1
