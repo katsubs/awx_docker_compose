@@ -248,7 +248,7 @@ ADD tools/scripts/awx-python /usr/bin/awx-python
 {% endif %}
 
 {% if (build_dev|bool) or (kube_dev|bool) %}
-RUN chmod -R +x /entrypoint.sh /usr/bin/launch_awx.sh /start_tests.sh /usr/bin/bootstrap_development.sh /usr/bin/config-watcher /awx_devel
+RUN chmod -R +x /entrypoint.sh /usr/bin/launch_awx.sh /start_tests.sh /usr/bin/bootstrap_development.sh /usr/bin/config-watcher
 RUN echo /awx_devel > /var/lib/awx/venv/awx/lib/python3.11/site-packages/awx.egg-link
 RUN echo /awx_devel > /var/lib/awx/venv/awx/lib/python3.11/site-packages/awx.pth
 RUN ln -sf /awx_devel/tools/docker-compose/awx-manage /usr/local/bin/awx-manage
@@ -313,7 +313,7 @@ ENV HOME="/var/lib/awx"
 
 {% if build_dev|bool %}
 
-USER root
+USER katsub
 
 ENV PATH="/var/lib/awx/venv/awx/bin/:${PATH}"
 
@@ -322,7 +322,7 @@ EXPOSE 8043 8013 8080 22
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/bash"]
 {% else %}
-USER root
+USER katsub
 EXPOSE 8052
 
 ENTRYPOINT ["dumb-init", "--"]
