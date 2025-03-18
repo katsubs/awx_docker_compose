@@ -571,17 +571,18 @@ docker-compose-build: Dockerfile.dev
 .PHONY: docker-compose-buildx
 ## Build awx_devel image for docker compose development environment for multiple architectures
 docker-compose-buildx: Dockerfile.dev
-	- docker buildx create --name docker-compose-buildx
-	docker buildx use docker-compose-buildx
-	- docker buildx build \
-		--ssh default=$(SSH_AUTH_SOCK) \
-		--push \
-		--build-arg BUILDKIT_INLINE_CACHE=1 \
-		$(DOCKER_DEVEL_CACHE_FLAG) \
-		--platform=$(PLATFORMS) \
-		--tag $(DEVEL_IMAGE_NAME) \
-		-f Dockerfile.dev .
-	- docker buildx rm docker-compose-buildx
+    - docker buildx create --name docker-compose-buildx || true
+    docker buildx use docker-compose-buildx
+    docker buildx build \
+        --ssh default=$(SSH_AUTH_SOCK) \
+        --push \
+        --build-arg BUILDKIT_INLINE_CACHE=1 \
+        $(DOCKER_DEVEL_CACHE_FLAG) \
+        --platform=$(PLATFORMS) \
+        --tag $(DEVEL_IMAGE_NAME) \
+        -f Dockerfile.dev \
+        .  # Добавлен путь к контексту сборки
+    - docker buildx rm docker-compose-buildx || true
 
 docker-clean:
 	-$(foreach container_id,$(shell docker ps -f name=tools_awx -aq && docker ps -f name=tools_receptor -aq),docker stop $(container_id); docker rm -f $(container_id);)
