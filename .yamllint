@@ -1,0 +1,19 @@
+---
+ignore: |
+  .github
+  .tox
+  awx/main/tests/data/inventory/plugins/**
+  # vault files
+  awx/main/tests/data/ansible_utils/playbooks/valid/vault.yml
+  tools/docker-compose/_sources
+  # django template files
+  awx/api/templates/instance_install_bundle/**
+  .readthedocs.yaml
+  tools/loki
+  tools/otel
+
+extends: default
+
+rules:
+  line-length: disable
+  truthy: disable
