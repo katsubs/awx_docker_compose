@@ -566,7 +566,8 @@ docker-compose-build: Dockerfile.dev
 		-f Dockerfile.dev \
 		-t $(DEVEL_IMAGE_NAME) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
-		$(DOCKER_DEVEL_CACHE_FLAG) .
+		$(DOCKER_DEVEL_CACHE_FLAG) \
+		$(BUILD_CONTEXT)
 
 .PHONY: docker-compose-buildx
 ## Build awx_devel image for docker compose development environment for multiple architectures
@@ -580,7 +581,8 @@ docker-compose-buildx: Dockerfile.dev
 		$(DOCKER_DEVEL_CACHE_FLAG) \
 		--platform=$(PLATFORMS) \
 		--tag $(DEVEL_IMAGE_NAME) \
-		-f Dockerfile.dev .
+		-f Dockerfile.dev \
+  	  	$(BUILD_CONTEXT)
 	- docker buildx rm docker-compose-buildx
 
 docker-clean:
