@@ -1,0 +1,259 @@
+### This file is generated from
+### tools/ansible/roles/dockerfile/templates/Dockerfile.j2
+###
+### DO NOT EDIT
+###
+
+# UI_next build contaienr
+FROM quay.io/centos/centos:stream9 AS ui-builder
+USER root
+RUN dnf -y update && dnf install -y nodejs make git
+RUN npm install -g n && n 18
+
+COPY . /tmp/src/
+WORKDIR /tmp/src/
+RUN make ui
+
+# Build container
+FROM quay.io/centos/centos:stream9 AS builder
+
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+ENV AWX_LOGGING_MODE stdout
+
+
+USER root
+
+# Import the gpg key for DNF to work
+RUN rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
+
+# Install build dependencies
+RUN dnf -y update && dnf install -y 'dnf-command(config-manager)' && \
+    dnf config-manager --set-enabled crb && \
+    dnf -y install \
+    iputils \
+    gcc \
+    gcc-c++ \
+    git-core \
+    gettext \
+    glibc-langpack-en \
+    libffi-devel \
+    libtool-ltdl-devel \
+    make \
+    nss \
+    patch \
+    postgresql \
+    postgresql-devel \
+    python3.11 \
+    "python3.11-devel" \
+    "python3.11-pip" \
+    "python3.11-setuptools" \
+    "python3.11-packaging" \
+    "python3.11-psycopg2" \
+    swig \
+    unzip \
+    xmlsec1-devel \
+    xmlsec1-openssl-devel
+
+RUN pip3.11 install -vv build
+
+
+# Install & build requirements
+ADD Makefile /tmp/Makefile
+RUN mkdir /tmp/requirements
+ADD requirements/requirements.txt \
+    requirements/requirements_tower_uninstall.txt \
+    requirements/requirements_git.txt \
+    /tmp/requirements/
+
+RUN cd /tmp && make requirements_awx
+
+ARG VERSION
+ARG SETUPTOOLS_SCM_PRETEND_VERSION
+
+ADD requirements/requirements_dev.txt /tmp/requirements
+RUN cd /tmp && make requirements_awx_dev
+
+
+# Final container(s)
+FROM quay.io/centos/centos:stream9
+
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+ENV AWX_LOGGING_MODE stdout
+
+USER root
+
+# Import the gpg key for DNF to work
+RUN rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
+
+ADD https://copr.fedorainfracloud.org/coprs/ansible/Rsyslog/repo/epel-9/ansible-Rsyslog-epel-9.repo /etc/yum.repos.d/ansible-Rsyslog-epel-9.repo
+
+# Install runtime requirements
+RUN dnf -y update && dnf install -y 'dnf-command(config-manager)' && \
+    dnf config-manager --set-enabled crb && \
+    dnf -y install acl \
+    git-core \
+    git-lfs \
+    glibc-langpack-en \
+    krb5-workstation \
+    nginx \
+    postgresql \
+    python3.11 \
+    "python3.11-devel" \
+    "python3.11-pip*" \
+    "python3.11-setuptools" \
+    "python3.11-packaging" \
+    "python3.11-psycopg2" \
+    rsync \
+    rsyslog-8.2102.0-106.el9 \
+    subversion \
+    sudo \
+    vim-minimal \
+    which \
+    unzip \
+    xmlsec1-openssl && \
+    dnf -y clean all
+
+RUN pip3.11 install -vv virtualenv supervisor dumb-init build
+
+RUN rm -rf /root/.cache && rm -rf /tmp/*
+
+# Install development/test requirements
+RUN dnf -y install \
+    crun \
+    gdb \
+    gtk3 \
+    gettext \
+    hostname \
+    procps \
+    alsa-lib \
+    libX11-xcb \
+    libXScrnSaver \
+    iproute \
+    strace \
+    vim \
+    nmap-ncat \
+    libpq-devel \
+    nodejs \
+    nss \
+    make \
+    patch \
+    socat \
+    tmux \
+    wget \
+    diffutils \
+    unzip && \
+    dnf module -y reset nodejs && \
+    dnf module -y enable nodejs:22 && \
+    dnf module -y install nodejs:22
+
+RUN pip3.11 install -vv git+https://github.com/coderanger/supervisor-stdout.git@973ba19967cdaf46d9c1634d1675fc65b9574f6e
+RUN pip3.11 install -vv black setuptools-scm build
+
+# This package randomly fails to download.
+# It is nice to have in the dev env, but not necessary.
+# Add it back to the list above if the repo ever straighten up.
+RUN dnf --enablerepo=baseos-debug -y install python3-debuginfo || :
+
+RUN dnf install -y epel-next-release && dnf install -y inotify-tools && dnf remove -y epel-next-release
+
+# Copy app from builder
+COPY --from=builder /var/lib/awx /var/lib/awx
+
+RUN ln -s /var/lib/awx/venv/awx/bin/awx-manage /usr/bin/awx-manage
+
+COPY --from=quay.io/ansible/receptor:devel /usr/bin/receptor /usr/bin/receptor
+
+RUN openssl req -nodes -newkey rsa:2048 -keyout /etc/nginx/nginx.key -out /etc/nginx/nginx.csr \
+        -subj "/C=US/ST=North Carolina/L=Durham/O=Ansible/OU=AWX Development/CN=awx.localhost" && \
+    openssl x509 -req -days 365 -in /etc/nginx/nginx.csr -signkey /etc/nginx/nginx.key -out /etc/nginx/nginx.crt && \
+    chmod 640 /etc/nginx/nginx.{csr,key,crt}
+
+RUN dnf install -y podman && rpm --restore shadow-utils 2>/dev/null
+
+# chmod containers.conf and adjust storage.conf to enable Fuse storage.
+RUN sed -i -e 's|^#mount_program|mount_program|g' -e '/additionalimage.*/a "/var/lib/shared",' -e 's|^mountopt[[:space:]]*=.*$|mountopt = "nodev,fsync=0"|g' /etc/containers/storage.conf
+
+ENV _CONTAINERS_USERNS_CONFIGURED=""
+
+# Ensure we must use fully qualified image names
+# This prevents podman prompt that hangs when trying to pull unqualified images
+RUN mkdir -p /etc/containers/registries.conf.d/ && echo "unqualified-search-registries = []" >> /etc/containers/registries.conf.d/force-fully-qualified-images.conf && chmod 644 /etc/containers/registries.conf.d/force-fully-qualified-images.conf
+
+ADD tools/ansible/roles/dockerfile/files/rsyslog.conf /var/lib/awx/rsyslog/rsyslog.conf
+ADD tools/ansible/roles/dockerfile/files/wait-for-migrations /usr/local/bin/wait-for-migrations
+ADD tools/ansible/roles/dockerfile/files/stop-supervisor /usr/local/bin/stop-supervisor
+
+ADD tools/ansible/roles/dockerfile/files/uwsgi.ini /etc/tower/uwsgi.ini
+
+## File mappings
+ADD tools/docker-compose/launch_awx.sh /usr/bin/launch_awx.sh
+ADD tools/docker-compose/start_tests.sh /start_tests.sh
+ADD tools/docker-compose/bootstrap_development.sh /usr/bin/bootstrap_development.sh
+ADD tools/docker-compose/entrypoint.sh /entrypoint.sh
+ADD tools/scripts/config-watcher /usr/bin/config-watcher
+
+RUN echo /awx_devel > /var/lib/awx/venv/awx/lib/python3.11/site-packages/awx.egg-link
+RUN echo /awx_devel > /var/lib/awx/venv/awx/lib/python3.11/site-packages/awx.pth
+RUN ln -sf /awx_devel/tools/docker-compose/awx-manage /usr/local/bin/awx-manage
+RUN ln -sf /awx_devel/tools/scripts/awx-python /usr/bin/awx-python
+RUN ln -sf /awx_devel/tools/scripts/rsyslog-4xx-recovery /usr/bin/rsyslog-4xx-recovery
+
+# Pre-create things we need to access
+RUN for dir in \
+      /var/lib/awx \
+      /var/lib/awx/rsyslog \
+      /var/lib/awx/rsyslog/conf.d \
+      /var/lib/awx/.local/share/containers/storage \
+      /var/run/awx-rsyslog \
+      /var/log/nginx \
+      /var/lib/pgsql \
+      /var/run/supervisor \
+      /var/run/awx-receptor \
+      /var/lib/nginx ; \
+    do mkdir -m 0775 -p $dir ; chmod g+rwx $dir ; chgrp root $dir ; done && \
+    for file in \
+      /etc/subuid \
+      /etc/subgid \
+      /etc/group \
+      /etc/passwd \
+      /var/lib/awx/rsyslog/rsyslog.conf ; \
+    do touch $file ; chmod g+rw $file ; chgrp root $file ; done
+
+RUN for dir in \
+      /var/lib/awx/.local \
+      /var/lib/awx/venv \
+      /var/lib/awx/venv/awx/bin \
+      /var/lib/awx/venv/awx/lib/python3.11 \
+      /var/lib/awx/venv/awx/lib/python3.11/site-packages \
+      /var/lib/awx/projects \
+      /var/lib/awx/rsyslog \
+      /var/run/awx-rsyslog \
+      /.ansible \
+      /var/lib/shared/overlay-images \
+      /var/lib/shared/overlay-layers \
+      /var/lib/shared/vfs-images \
+      /var/lib/shared/vfs-layers \
+      /var/lib/awx/vendor ; \
+    do mkdir -m 0775 -p $dir ; chmod g+rwx $dir ; chgrp root $dir ; done && \
+    for file in \
+      /var/lib/shared/overlay-images/images.lock \
+      /var/lib/shared/overlay-layers/layers.lock \
+      /var/lib/shared/vfs-images/images.lock \
+      /var/lib/shared/vfs-layers/layers.lock \
+      /var/run/nginx.pid; \
+    do touch $file ; chmod g+rw $file ; done && \
+    echo "\setenv PAGER 'less -SXF'" > /var/lib/awx/.psqlrc
+
+
+ENV HOME="/var/lib/awx"
+
+ENV PATH="/var/lib/awx/venv/awx/bin/:${PATH}"
+
+EXPOSE 8043 8013 8080 22
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/bin/bash"]
