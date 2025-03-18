@@ -196,6 +196,7 @@ ADD tools/docker-compose/bootstrap_development.sh /usr/bin/bootstrap_development
 ADD tools/docker-compose/entrypoint.sh /entrypoint.sh
 ADD tools/scripts/config-watcher /usr/bin/config-watcher
 
+RUN chmod +x /entrypoint.sh
 RUN echo /awx_devel > /var/lib/awx/venv/awx/lib/python3.11/site-packages/awx.egg-link
 RUN echo /awx_devel > /var/lib/awx/venv/awx/lib/python3.11/site-packages/awx.pth
 RUN ln -sf /awx_devel/tools/docker-compose/awx-manage /usr/local/bin/awx-manage
