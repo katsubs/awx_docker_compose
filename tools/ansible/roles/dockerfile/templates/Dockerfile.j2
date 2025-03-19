@@ -313,7 +313,7 @@ ENV HOME="/var/lib/awx"
 
 {% if build_dev|bool %}
 
-USER katsub
+USER awx
 
 ENV PATH="/var/lib/awx/venv/awx/bin/:${PATH}"
 
@@ -322,7 +322,7 @@ EXPOSE 8043 8013 8080 22
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/bash"]
 {% else %}
-USER katsub
+USER awx
 EXPOSE 8052
 
 ENTRYPOINT ["dumb-init", "--"]

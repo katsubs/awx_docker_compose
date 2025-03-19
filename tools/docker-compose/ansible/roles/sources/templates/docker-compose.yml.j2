@@ -7,7 +7,7 @@ services:
     image: "{{ awx_image }}:{{ awx_image_tag }}"
     container_name: tools_init_awx
     command: /awx_devel/tools/docker-compose/editable_dependencies/install.sh
-    user: root
+    user: awx
     working_dir: "/"
     environment:
       RUN_MIGRATIONS: 1
