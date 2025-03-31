@@ -26,6 +26,7 @@ services:
   awx_{{ container_postfix }}:
     user: "{{ ansible_user_uid }}"
     image: "{{ awx_image }}:{{ awx_image_tag }}"
+    cgroup: "host"
     container_name: tools_awx_{{ container_postfix }}
     hostname: awx-{{ container_postfix }}
     command: launch_awx.sh
