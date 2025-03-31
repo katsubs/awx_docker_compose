@@ -167,7 +167,7 @@ def migrate_to_new_rbac(apps, schema_editor):
             perm.delete()
 
     managed_definitions = dict()
-    for role_definition in RoleDefinition.objects.filter(managed=True).exclude(name__in=(settings.ANSIBLE_BASE_JWT_MANAGED_ROLES)):
+    for role_definition in RoleDefinition.objects.filter(managed=True):
         permissions = frozenset(role_definition.permissions.values_list('id', flat=True))
         managed_definitions[permissions] = role_definition
 
@@ -239,7 +239,7 @@ def migrate_to_new_rbac(apps, schema_editor):
 
     # Create new replacement system auditor role
     new_system_auditor, created = RoleDefinition.objects.get_or_create(
-        name='Controller System Auditor',
+        name='System Auditor',
         defaults={'description': 'Migrated singleton role giving read permission to everything', 'managed': True},
     )
     new_system_auditor.permissions.add(*list(Permission.objects.filter(codename__startswith='view')))
@@ -277,6 +277,7 @@ def setup_managed_role_definitions(apps, schema_editor):
     to_create = {
         'object_admin': '{cls.__name__} Admin',
         'org_admin': 'Organization Admin',
+        'org_audit': 'Organization Audit',
         'org_children': 'Organization {cls.__name__} Admin',
         'special': '{cls.__name__} {action}',
     }
@@ -309,16 +310,6 @@ def setup_managed_role_definitions(apps, schema_editor):
                     to_create['object_admin'].format(cls=cls), f'Has all permissions to a single {cls._meta.verbose_name}', ct, indiv_perms, RoleDefinition
                 )
             )
-            if cls_name == 'team':
-                managed_role_definitions.append(
-                    get_or_create_managed(
-                        'Controller Team Admin',
-                        f'Has all permissions to a single {cls._meta.verbose_name}',
-                        ct,
-                        indiv_perms,
-                        RoleDefinition,
-                    )
-                )
 
         if 'org_children' in to_create and (cls_name not in ('organization', 'instancegroup', 'team')):
             org_child_perms = object_perms.copy()
@@ -343,34 +334,15 @@ def setup_managed_role_definitions(apps, schema_editor):
             for perm in special_perms:
                 action = perm.codename.split('_')[0]
                 view_perm = Permission.objects.get(content_type=ct, codename__startswith='view_')
-                perm_list = [perm, view_perm]
-                # Handle special-case where adhoc role also listed use permission
-                if action == 'adhoc':
-                    for other_perm in object_perms:
-                        if other_perm.codename == 'use_inventory':
-                            perm_list.append(other_perm)
-                            break
                 managed_role_definitions.append(
                     get_or_create_managed(
                         to_create['special'].format(cls=cls, action=action.title()),
                         f'Has {action} permissions to a single {cls._meta.verbose_name}',
                         ct,
-                        perm_list,
+                        [perm, view_perm],
                         RoleDefinition,
                     )
                 )
-                if action == 'member' and cls_name in ('organization', 'team'):
-                    suffix = to_create['special'].format(cls=cls, action=action.title())
-                    rd_name = f'Controller {suffix}'
-                    managed_role_definitions.append(
-                        get_or_create_managed(
-                            rd_name,
-                            f'Has {action} permissions to a single {cls._meta.verbose_name}',
-                            ct,
-                            perm_list,
-                            RoleDefinition,
-                        )
-                    )
 
     if 'org_admin' in to_create:
         managed_role_definitions.append(
@@ -382,50 +354,19 @@ def setup_managed_role_definitions(apps, schema_editor):
                 RoleDefinition,
             )
         )
+
+    if 'org_audit' in to_create:
+        audit_permissions = [perm for perm in org_perms if perm.codename.startswith('view_')]
+        audit_permissions.append(Permission.objects.get(codename='audit_organization'))
         managed_role_definitions.append(
             get_or_create_managed(
-                'Controller Organization Admin',
-                'Has all permissions to a single organization and all objects inside of it',
+                to_create['org_audit'].format(cls=Organization),
+                'Has permission to view all objects inside of a single organization',
                 org_ct,
-                org_perms,
+                audit_permissions,
                 RoleDefinition,
             )
         )
-
-    # Special "organization action" roles
-    audit_permissions = [perm for perm in org_perms if perm.codename.startswith('view_')]
-    audit_permissions.append(Permission.objects.get(codename='audit_organization'))
-    managed_role_definitions.append(
-        get_or_create_managed(
-            'Organization Audit',
-            'Has permission to view all objects inside of a single organization',
-            org_ct,
-            audit_permissions,
-            RoleDefinition,
-        )
-    )
-
-    org_execute_permissions = {'view_jobtemplate', 'execute_jobtemplate', 'view_workflowjobtemplate', 'execute_workflowjobtemplate', 'view_organization'}
-    managed_role_definitions.append(
-        get_or_create_managed(
-            'Organization Execute',
-            'Has permission to execute all runnable objects in the organization',
-            org_ct,
-            [perm for perm in org_perms if perm.codename in org_execute_permissions],
-            RoleDefinition,
-        )
-    )
-
-    org_approval_permissions = {'view_organization', 'view_workflowjobtemplate', 'approve_workflowjobtemplate'}
-    managed_role_definitions.append(
-        get_or_create_managed(
-            'Organization Approval',
-            'Has permission to approve any workflow steps within a single organization',
-            org_ct,
-            [perm for perm in org_perms if perm.codename in org_approval_permissions],
-            RoleDefinition,
-        )
-    )
 
     unexpected_role_definitions = RoleDefinition.objects.filter(managed=True).exclude(pk__in=[rd.pk for rd in managed_role_definitions])
     for role_definition in unexpected_role_definitions:

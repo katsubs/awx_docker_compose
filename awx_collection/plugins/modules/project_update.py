@@ -74,7 +74,7 @@ EXAMPLES = '''
 - name: Launch a Project with extra_vars without waiting
   project_update:
     project: "Networking Project"
-    wait: false
+    wait: False
 '''
 
 from ..module_utils.controller_api import ControllerAPIModule

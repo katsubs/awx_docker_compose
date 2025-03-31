@@ -240,15 +240,7 @@ def test_extract_ansible_vars():
         ('git', 'https://example.com/bar.git', 'user', 'pw', True, False, 'https://user:pw@example.com/bar.git'),
         ('git', 'https://example@example.com/bar.git', False, 'something', True, False, 'https://example.com/bar.git'),
         # Special github/bitbucket cases
-        (
-            'git',
-            'notgit@github.com:ansible/awx.git',
-            True,
-            True,
-            True,
-            False,
-            ValueError('Username must be "git" for SSH access to github.com.'),
-        ),
+        ('git', 'notgit@github.com:ansible/awx.git', True, True, True, False, ValueError('Username must be "git" for SSH access to github.com.')),
         (
             'git',
             'notgit@bitbucket.org:does-not-exist/example.git',
@@ -326,7 +318,7 @@ class TestHostnameRegexValidator:
 
     def test_good_call(self, regex_expr, re_flags):
         h = HostnameRegexValidator(regex=regex_expr, flags=re_flags)
-        assert h("192.168.56.101") is None
+        assert (h("192.168.56.101"), None)
 
     def test_bad_call(self, regex_expr, re_flags):
         h = HostnameRegexValidator(regex=regex_expr, flags=re_flags)
@@ -344,4 +336,4 @@ class TestHostnameRegexValidator:
 
     def test_bad_call_with_inverse(self, regex_expr, re_flags, inverse_match=True):
         h = HostnameRegexValidator(regex=regex_expr, flags=re_flags, inverse_match=inverse_match)
-        assert h("@#$%)$#(TUFAS_DG") is None
+        assert (h("@#$%)$#(TUFAS_DG"), None)

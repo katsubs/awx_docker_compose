@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import collections
 import copy
 import io
+import os
 import json
 import logging
 import re
@@ -33,9 +34,6 @@ from cryptography import x509
 # Django
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
-
-# Shared code for the AWX platform
-from awx_plugins.interfaces._temporary_private_licensing_api import detect_server_product_name
 
 from awx.main.constants import SUBSCRIPTION_USAGE_MODEL_UNIQUE_HOSTS
 
@@ -452,12 +450,7 @@ class Licenser(object):
         if first_host:
             automated_since = int(first_host.first_automation.timestamp())
         else:
-            try:
-                automated_since = int(Instance.objects.order_by('id').first().created.timestamp())
-            except AttributeError:
-                # In the odd scenario that create_preload_data was not run, there are no hosts
-                # Then we CAN end up here before any instance has registered
-                automated_since = int(time.time())
+            automated_since = int(Instance.objects.order_by('id').first().created.timestamp())
         instance_count = int(attrs.get('instance_count', 0))
         attrs['current_instances'] = current_instances
         attrs['automated_instances'] = automated_instances
@@ -482,9 +475,13 @@ def get_licenser(*args, **kwargs):
     from awx.main.utils.licensing import Licenser, OpenLicense
 
     try:
-        if detect_server_product_name() == 'AWX':
-            return OpenLicense()
-        else:
+        if os.path.exists('/var/lib/awx/.tower_version'):
             return Licenser(*args, **kwargs)
+        else:
+            return OpenLicense()
     except Exception as e:
         raise ValueError(_('Error importing License: %s') % e)
+
+
+def server_product_name():
+    return 'AWX' if isinstance(get_licenser(), OpenLicense) else 'Red Hat Ansible Automation Platform'

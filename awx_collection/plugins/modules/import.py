@@ -36,7 +36,7 @@ extends_documentation_fragment: awx.awx.auth
 EXAMPLES = '''
 - name: Export all assets
   export:
-    all: true
+    all: True
   register: export_output
 
 - name: Import all assets from our export

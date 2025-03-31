@@ -33,8 +33,12 @@ class ControllerAWXKitModule(ControllerModule):
 
     def authenticate(self):
         try:
-            self.connection.login(username=self.username, password=self.password)
-            self.authenticated = True
+            if self.oauth_token:
+                self.connection.login(None, None, token=self.oauth_token)
+                self.authenticated = True
+            elif self.username:
+                self.connection.login(username=self.username, password=self.password)
+                self.authenticated = True
         except Exception:
             self.fail_json("Failed to authenticate")
 

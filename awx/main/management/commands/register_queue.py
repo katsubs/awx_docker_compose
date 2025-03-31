@@ -2,8 +2,7 @@
 # All Rights Reserved.
 import sys
 
-from ansible_base.lib.utils.db import advisory_lock
-
+from awx.main.utils.pglock import advisory_lock
 from awx.main.models import Instance, InstanceGroup
 
 from django.core.management.base import BaseCommand, CommandError

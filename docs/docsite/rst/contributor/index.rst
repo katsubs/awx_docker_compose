@@ -10,14 +10,13 @@ There are so many ways you can contribute to AWX.
 
 **Join us online**
 
-Need help or want to discuss AWX including the documentation? See the :ref:`Communication guide<communication>` to learn how to join the conversation!
+You can chat with us and ask questions on Matrix at `#awx:ansible.com <https://matrix.to/#/#awx:ansible.com>`_ or visit the `Ansible Community Forum <https://forum.ansible.com/c/project/7/>`_ to find contributor resources.
 
 .. toctree::
    :maxdepth: 2
    :numbered:
 
    intro
-   communication
    setting_up
    work_items
    report_issues

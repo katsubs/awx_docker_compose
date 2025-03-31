@@ -8,7 +8,7 @@ import ipaddress
 
 import aiohttp
 from aiohttp import client_exceptions
-import redis
+import aioredis
 
 from channels.layers import get_channel_layer
 
@@ -47,6 +47,7 @@ class WebsocketRelayConnection:
         verify_ssl: bool = settings.BROADCAST_WEBSOCKET_VERIFY_CERT,
     ):
         self.name = name
+        self.event_loop = asyncio.get_event_loop()
         self.stats = stats
         self.remote_host = remote_host
         self.remote_port = remote_port
@@ -109,10 +110,7 @@ class WebsocketRelayConnection:
             self.stats.record_connection_lost()
 
     def start(self):
-        self.async_task = asyncio.get_running_loop().create_task(
-            self.connect(),
-            name=f"WebsocketRelayConnection.connect.{self.name}",
-        )
+        self.async_task = self.event_loop.create_task(self.connect())
         return self.async_task
 
     def cancel(self):
@@ -123,10 +121,7 @@ class WebsocketRelayConnection:
         # metrics messages
         # the "metrics" group is not subscribed to in the typical fashion, so we
         # just explicitly create it
-        producer = asyncio.get_running_loop().create_task(
-            self.run_producer("metrics", websocket, "metrics"),
-            name="WebsocketRelayConnection.run_producer.metrics",
-        )
+        producer = self.event_loop.create_task(self.run_producer("metrics", websocket, "metrics"))
         self.producers["metrics"] = {"task": producer, "subscriptions": {"metrics"}}
         async for msg in websocket:
             self.stats.record_message_received()
@@ -148,10 +143,7 @@ class WebsocketRelayConnection:
                     name = f"{self.remote_host}-{group}"
                     origin_channel = payload['origin_channel']
                     if not self.producers.get(name):
-                        producer = asyncio.get_running_loop().create_task(
-                            self.run_producer(name, websocket, group),
-                            name=f"WebsocketRelayConnection.run_producer.{name}",
-                        )
+                        producer = self.event_loop.create_task(self.run_producer(name, websocket, group))
                         self.producers[name] = {"task": producer, "subscriptions": {origin_channel}}
                         logger.debug(f"Producer {name} started.")
                     else:
@@ -199,7 +191,7 @@ class WebsocketRelayConnection:
                         return
 
                     continue
-                except redis.exceptions.ConnectionError:
+                except aioredis.errors.ConnectionClosedError:
                     logger.info(f"Producer {name} lost connection to Redis, shutting down.")
                     return
 
@@ -305,7 +297,9 @@ class WebSocketRelayManager(object):
             pass
 
     async def run(self):
-        self.stats_mgr = RelayWebsocketStatsManager(self.local_hostname)
+        event_loop = asyncio.get_running_loop()
+
+        self.stats_mgr = RelayWebsocketStatsManager(event_loop, self.local_hostname)
         self.stats_mgr.start()
 
         database_conf = deepcopy(settings.DATABASES['default'])
@@ -329,10 +323,7 @@ class WebSocketRelayManager(object):
         )
 
         await async_conn.set_autocommit(True)
-        on_ws_heartbeat_task = asyncio.get_running_loop().create_task(
-            self.on_ws_heartbeat(async_conn),
-            name="WebSocketRelayManager.on_ws_heartbeat",
-        )
+        on_ws_heartbeat_task = event_loop.create_task(self.on_ws_heartbeat(async_conn))
 
         # Establishes a websocket connection to /websocket/relay on all API servers
         while True:

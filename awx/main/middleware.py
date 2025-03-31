@@ -20,7 +20,6 @@ from awx.main import migrations
 from awx.main.utils.profiling import AWXProfiler
 from awx.main.utils.common import memoize
 from awx.urls import get_urlpatterns
-from awx.main.utils.named_url_graph import reset_counters
 
 
 logger = logging.getLogger('awx.main.middleware')
@@ -94,8 +93,8 @@ class DisableLocalAuthMiddleware(MiddlewareMixin):
             user = request.user
             if not user.pk:
                 return
-
-            logout(request)
+            if not (user.profile.ldap_dn or user.social_auth.exists() or user.enterprise_auth.exists()):
+                logout(request)
 
 
 class URLModificationMiddleware(MiddlewareMixin):
@@ -113,7 +112,6 @@ class URLModificationMiddleware(MiddlewareMixin):
     @classmethod
     def _named_url_to_pk(cls, node, resource, named_url):
         kwargs = {}
-        reset_counters()
         if node.populate_named_url_query_kwargs(kwargs, named_url):
             match = node.model.objects.filter(**kwargs).first()
             if match:

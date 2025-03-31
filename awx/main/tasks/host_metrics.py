@@ -11,8 +11,6 @@ from awx.main.dispatch.publish import task
 from awx.main.models.inventory import HostMetric, HostMetricSummaryMonthly
 from awx.main.tasks.helpers import is_run_threshold_reached
 from awx.conf.license import get_license
-from ansible_base.lib.utils.db import advisory_lock
-
 
 logger = logging.getLogger('awx.main.tasks.host_metrics')
 
@@ -92,10 +90,7 @@ class HostMetricTask:
 
 
 class HostMetricSummaryMonthlyTask:
-    LOCK_KEY = 'host_metric_summary_monthly'
-    LOCK_SESSION_TIMEOUT = 300000  # 5 minutes.
     """
-    Task runs every four hours, longer lock timeout avoids premature termination due to high db load or other latency.
     This task computes last [threshold] months of HostMetricSummaryMonthly table
     [threshold] is setting CLEANUP_HOST_METRICS_HARD_THRESHOLD
     Each record in the table represents changes in HostMetric table in one month
@@ -120,37 +115,29 @@ class HostMetricSummaryMonthlyTask:
         self.records_to_update = []
 
     def execute(self):
+        self._load_existing_summaries()
+        self._load_hosts_added()
+        self._load_hosts_deleted()
 
-        with advisory_lock(
-            HostMetricSummaryMonthlyTask.LOCK_KEY, lock_session_timeout_milliseconds=HostMetricSummaryMonthlyTask.LOCK_SESSION_TIMEOUT, wait=False
-        ) as acquired:
-            if not acquired:
-                logger.info("Another instance of host_metric_summary_monthly is already running. Exiting.")
-                return
+        # Get first month after last hard delete
+        month = self._get_first_month()
+        license_consumed = self._get_license_consumed_before(month)
 
-            self._load_existing_summaries()
-            self._load_hosts_added()
-            self._load_hosts_deleted()
+        # Fill record for each month
+        while month <= datetime.date.today().replace(day=1):
+            summary = self._find_or_create_summary(month)
+            # Update summary and update license_consumed by hosts added/removed this month
+            self._update_summary(summary, month, license_consumed)
+            license_consumed = summary.license_consumed
 
-            # Get first month after last hard delete
-            month = self._get_first_month()
-            license_consumed = self._get_license_consumed_before(month)
+            month = month + relativedelta(months=1)
 
-            # Fill record for each month
-            while month <= datetime.date.today().replace(day=1):
-                summary = self._find_or_create_summary(month)
-                # Update summary and update license_consumed by hosts added/removed this month
-                self._update_summary(summary, month, license_consumed)
-                license_consumed = summary.license_consumed
+        # Create/Update stats
+        HostMetricSummaryMonthly.objects.bulk_create(self.records_to_create, batch_size=1000)
+        HostMetricSummaryMonthly.objects.bulk_update(self.records_to_update, ['license_consumed', 'hosts_added', 'hosts_deleted'], batch_size=1000)
 
-                month = month + relativedelta(months=1)
-
-            # Create/Update stats
-            HostMetricSummaryMonthly.objects.bulk_create(self.records_to_create, batch_size=1000)
-            HostMetricSummaryMonthly.objects.bulk_update(self.records_to_update, ['license_consumed', 'hosts_added', 'hosts_deleted'], batch_size=1000)
-
-            # Set timestamp of last run
-            settings.HOST_METRIC_SUMMARY_TASK_LAST_TS = now()
+        # Set timestamp of last run
+        settings.HOST_METRIC_SUMMARY_TASK_LAST_TS = now()
 
     def _get_license_consumed_before(self, month):
         license_consumed = 0
@@ -234,7 +221,7 @@ class HostMetricSummaryMonthlyTask:
             self.records_to_update.append(summary)
         return summary
 
-    def _find_summary(self, month: datetime.date):
+    def _find_summary(self, month):
         """
         Existing summaries are ordered by month ASC.
         This method is called with month in ascending order too => only 1 traversing is enough
@@ -242,8 +229,6 @@ class HostMetricSummaryMonthlyTask:
         summary = None
         while not summary and self.existing_summaries_idx < self.existing_summaries_cnt:
             tmp = self.existing_summaries[self.existing_summaries_idx]
-            if isinstance(tmp, datetime.datetime):
-                tmp = tmp.date()
             if tmp.date < month:
                 self.existing_summaries_idx += 1
             elif tmp.date == month:

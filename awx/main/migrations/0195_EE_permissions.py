@@ -12,6 +12,7 @@ def delete_execution_environment_read_role(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+
     dependencies = [
         ('main', '0194_alter_inventorysource_source_and_more'),
     ]

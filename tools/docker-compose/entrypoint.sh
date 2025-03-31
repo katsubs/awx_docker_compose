@@ -26,7 +26,10 @@ fi
 # writing out the sub*id files above
 podman system migrate
 
-export SDB_NOTIFY_HOST=$(ip route | head -n1 | awk '{print $3}')
-
+if [[ "$OS" ==  *"Docker Desktop"* ]]; then
+    export SDB_NOTIFY_HOST='docker.for.mac.host.internal'
+else
+    export SDB_NOTIFY_HOST=$(ip route | head -n1 | awk '{print $3}')
+fi
 
 exec $@

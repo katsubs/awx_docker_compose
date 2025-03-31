@@ -39,6 +39,11 @@ def runtime_data(organization, credentialtype_ssh):
 
 
 @pytest.fixture
+def job_with_links(machine_credential, inventory):
+    return Job.objects.create(name='existing-job', credential=machine_credential, inventory=inventory)
+
+
+@pytest.fixture
 def job_template_prompts(project, inventory, machine_credential):
     def rf(on_off):
         jt = JobTemplate.objects.create(

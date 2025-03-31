@@ -1,4 +1,0 @@
----
-- name: debug variable
-  debug:
-    msg: "1234567890"

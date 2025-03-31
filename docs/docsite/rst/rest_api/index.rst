@@ -12,7 +12,9 @@ Likewise content in this guide can be removed or replaced if it applies to funct
 
 **Join us online**
 
-Need help or want to discuss AWX including the documentation? See the :ref:`Communication guide<communication>` to learn how to join the conversation!
+We talk about AWX documentation on Matrix at `#docs:ansible.im <https://matrix.to/#/#docs:ansible.im>`_ and on libera IRC at ``#ansible-docs`` if you ever want to join us and chat about the docs!
+
+You can also find lots of AWX discussion and get answers to questions at `forum.ansible.com <https://forum.ansible.com/>`_.
 
 .. toctree::
    :maxdepth: 2
@@ -29,7 +31,6 @@ Need help or want to discuss AWX including the documentation? See the :ref:`Comm
    access_resources
    read_only_fields
    authentication
-   awx-manage
    api_ref
 
 ..  intro

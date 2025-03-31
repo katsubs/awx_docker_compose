@@ -99,19 +99,11 @@ def mk_user(name, is_superuser=False, organization=None, team=None, persisted=Tr
 
 def mk_project(name, organization=None, description=None, persisted=True):
     description = description or '{}-description'.format(name)
-    project = Project(
-        name=name,
-        description=description,
-        playbook_files=['helloworld.yml', 'alt-helloworld.yml'],
-        scm_type='git',
-        scm_url='https://foo.invalid',
-        scm_revision='1234567890123456789012345678901234567890',
-        scm_update_on_launch=False,
-    )
+    project = Project(name=name, description=description, playbook_files=['helloworld.yml', 'alt-helloworld.yml'])
     if organization is not None:
         project.organization = organization
     if persisted:
-        project.save(skip_update=True)
+        project.save()
     return project
 
 

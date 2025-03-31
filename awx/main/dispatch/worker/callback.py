@@ -20,7 +20,6 @@ from awx.main.models import JobEvent, AdHocCommandEvent, ProjectUpdateEvent, Inv
 from awx.main.constants import ACTIVE_STATES
 from awx.main.models.events import emit_event_detail
 from awx.main.utils.profiling import AWXProfiler
-from awx.main.tasks.system import events_processed_hook
 import awx.main.analytics.subsystem_metrics as s_metrics
 from .base import BaseWorker
 
@@ -47,7 +46,7 @@ def job_stats_wrapup(job_identifier, event=None):
         # If the status was a finished state before this update was made, send notifications
         # If not, we will send notifications when the status changes
         if uj.status not in ACTIVE_STATES:
-            events_processed_hook(uj)
+            uj.send_notification_templates('succeeded' if uj.status == 'successful' else 'failed')
 
     except Exception:
         logger.exception('Worker failed to save stats or emit notifications: Job {}'.format(job_identifier))

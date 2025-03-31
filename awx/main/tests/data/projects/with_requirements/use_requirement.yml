@@ -1,7 +1,0 @@
----
-- hosts: all
-  connection: local
-  gather_facts: false
-  tasks:
-    - include_role:
-        name: role_requirement
